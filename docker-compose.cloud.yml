@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
 
   log-collector:
-    image: chaitanya556/log-collector:latest
+    image: mudam5/log-collector:latest
     container_name: log-pipeline-log-collector
     environment:
       - POSTGRES_HOST=postgres
@@ -25,11 +25,8 @@ services:
       - PERSISTOR_PAYMENT=http://persistor-payment:6000
       - PERSISTOR_SYSTEM=http://persistor-system:6000
       - PERSISTOR_APPLICATION=http://persistor-application:6000
-      # Use HTTPS for HEC (HEC is enabled with SSL on your Splunk)
       - SPLUNK_HEC=https://splunk:8088/services/collector
       - SPLUNK_TOKEN="<PASTE_HEC_TOKEN>"
-      # If your app validates TLS, add an env your app supports to skip self-signed verification.
-      # e.g., - SPLUNK_TLS_SKIP_VERIFY=true   (only if your collector code supports it)
     depends_on:
       postgres:
         condition: service_started
@@ -40,7 +37,7 @@ services:
     restart: unless-stopped
 
   persistor-auth:
-    image: chaitanya556/persistor-auth:latest
+    image: mudam5/persistor-auth:latest
     container_name: log-pipeline-persistor-auth
     environment:
       - STORE_FILE=/data/auth_logs.json
@@ -51,7 +48,7 @@ services:
     restart: unless-stopped
 
   persistor-payment:
-    image: chaitanya556/persistor-payment:latest
+    image: mudam5/persistor-payment:latest
     container_name: log-pipeline-persistor-payment
     environment:
       - STORE_FILE=/data/payment_logs.json
@@ -62,7 +59,7 @@ services:
     restart: unless-stopped
 
   persistor-system:
-    image: chaitanya556/persistor-system:latest
+    image: mudam5/persistor-system:latest
     container_name: log-pipeline-persistor-system
     environment:
       - STORE_FILE=/data/system_logs.json
@@ -73,7 +70,7 @@ services:
     restart: unless-stopped
 
   persistor-application:
-    image: chaitanya556/persistor-application:latest
+    image: mudam5/persistor-application:latest
     container_name: log-pipeline-persistor-application
     environment:
       - STORE_FILE=/data/application_logs.json
@@ -84,7 +81,7 @@ services:
     restart: unless-stopped
 
   log-ui:
-    image: chaitanya556/log-ui:latest
+    image: mudam5/log-ui:latest
     container_name: log-pipeline-log-ui
     ports:
       - "80:80"
@@ -99,17 +96,13 @@ services:
     environment:
       - SPLUNK_START_ARGS=--accept-license
       - SPLUNK_PASSWORD=SplunkPass123
-      # No need to set SPLUNK_USERNAME; 'admin' is implied.
     ports:
-      - "8000:8000"  # Splunk Web
-      - "8088:8088"  # HEC
-      - "9997:9997"  # Forwarder (optional)
+      - "8000:8000"
+      - "8088:8088"
+      - "9997:9997"
     volumes:
       - splunk-data:/opt/splunk/var
-      # (Optional but recommended) persist Splunk etc configs:
-      # - splunk-etc:/opt/splunk/etc
     healthcheck:
-      # Marks Splunk healthy only when HEC is ready
       test: ["CMD-SHELL", "curl -sk https://localhost:8088/services/collector/health | grep -qi 'healthy' || wget -qO- --no-check-certificate https://localhost:8088/services/collector/health | grep -qi 'healthy'"]
       interval: 10s
       timeout: 5s
@@ -142,7 +135,6 @@ services:
       - loki
     restart: unless-stopped
 
-  # ---------- Loki (log store & query engine) ----------
   loki:
     image: grafana/loki:2.9.0
     container_name: log-pipeline-loki
@@ -153,7 +145,6 @@ services:
       - loki-data:/loki
     restart: unless-stopped
 
-  # ---------- Promtail (tails Docker logs -> Loki) and exposes /metrics ----------
   promtail:
     image: grafana/promtail:2.9.0
     container_name: log-pipeline-promtail
@@ -164,14 +155,18 @@ services:
       - ./promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/log:/var/log:ro
+      # Mount application logs from persistors:
+      - persistor-auth-data:/mnt/logs/auth:ro
+      - persistor-payment-data:/mnt/logs/payment:ro
+      - persistor-system-data:/mnt/logs/system:ro
+      - persistor-application-data:/mnt/logs/application:ro
       - promtail-data:/var/lib/promtail
     expose:
-      - "9080"  # Promtail metrics for Prometheus scraping
+      - "9080"
     depends_on:
       - loki
     restart: unless-stopped
 
-  # ---------- cAdvisor (container metrics for Prometheus) ----------
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: log-pipeline-cadvisor
@@ -184,7 +179,6 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     restart: unless-stopped
 
-  # ---------- Splunk OpenTelemetry Collector (Prometheus -> Splunk HEC) ----------
   otel-collector:
     image: quay.io/signalfx/splunk-otel-collector:latest
     container_name: log-pipeline-otel-collector
@@ -219,16 +213,11 @@ volumes:
   persistor-system-data:
   persistor-application-data:
   splunk-data:
-  # splunk-etc:
   grafana-data:
   loki-data:
   promtail-data:
 
-# --------------------
-# Shared external network so this stack can talk to your other compose (e.g., log-listener/generator)
-# --------------------
 networks:
   default:
     external:
       name: log-pipeline-net
-
