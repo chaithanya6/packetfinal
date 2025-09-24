@@ -150,7 +150,8 @@ services:
       - -config.file=/etc/promtail/promtail-config.yml
       - -config.expand-env=true
     environment:
-      - SPLUNK_TOKEN=b8d99047-9f60-4484-9ee2-e84954bc2b8d  # persistent token
+      - SPLUNK_TOKEN=cad2b0c7-b640-498b-ba03-461d454f7d50
+      - HOSTNAME=log-pipeline-host # persistent token
     volumes:
       - ./promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
