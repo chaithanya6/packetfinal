@@ -25,8 +25,8 @@ services:
       - PERSISTOR_PAYMENT=http://persistor-payment:6000
       - PERSISTOR_SYSTEM=http://persistor-system:6000
       - PERSISTOR_APPLICATION=http://persistor-application:6000
-      - SPLUNK_HEC=https://splunk:8088/services/collector
-      - SPLUNK_TOKEN=b8d99047-9f60-4484-9ee2-e84954bc2b8d  # persistent token
+      - SPLUNK_HEC=http://splunk:8088/services/collector
+      - SPLUNK_TOKEN=cad2b0c7-b640-498b-ba03-461d454f7d50
     depends_on:
       - postgres
       - splunk
@@ -98,10 +98,10 @@ services:
       - "8088:8088"
       - "9997:9997"
     volumes:
-      - splunk-data:/opt/splunk/var       # persist all data including HEC tokens
-      - splunk-etc:/opt/splunk/etc        # persist configs including inputs.conf
+      - splunk-data:/opt/splunk/var
+      - splunk-etc:/opt/splunk/etc
     healthcheck:
-      test: ["CMD-SHELL", "curl -sk https://localhost:8088/services/collector/health | grep -qi 'healthy' || wget -qO- --no-check-certificate https://localhost:8088/services/collector/health | grep -qi 'healthy'"]
+      test: ["CMD-SHELL", "curl -sk http://localhost:8088/services/collector/health | grep -qi 'healthy' || wget -qO- http://localhost:8088/services/collector/health | grep -qi 'healthy'"]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -151,7 +151,7 @@ services:
       - -config.expand-env=true
     environment:
       - SPLUNK_TOKEN=cad2b0c7-b640-498b-ba03-461d454f7d50
-      - HOSTNAME=log-pipeline-host # persistent token
+      - HOSTNAME=log-pipeline-host
     volumes:
       - ./promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
@@ -161,10 +161,9 @@ services:
       - persistor-system-data:/mnt/logs/system:ro
       - persistor-application-data:/mnt/logs/application:ro
       - promtail-data:/var/lib/promtail
-    expose:
-      - "9080"
     depends_on:
       - loki
+      - splunk
     restart: unless-stopped
 
   cadvisor:
@@ -186,7 +185,7 @@ services:
     environment:
       - SPLUNK_CONFIG=/etc/otel/collector.yaml
       - SPLUNK_HEC_TOKEN=cad2b0c7-b640-498b-ba03-461d454f7d50
-      - SPLUNK_HEC_URL=https://splunk:8088/services/collector
+      - SPLUNK_HEC_URL=http://splunk:8088/services/collector
       - SPLUNK_DEBUG_CONFIG_SERVER=true
     volumes:
       - ./otel-collector-config.yml:/etc/otel/collector.yaml:ro
@@ -206,8 +205,8 @@ volumes:
   persistor-payment-data:
   persistor-system-data:
   persistor-application-data:
-  splunk-data:      # persist all Splunk data
-  splunk-etc:       # persist Splunk configs including HEC inputs.conf
+  splunk-data:
+  splunk-etc:
   grafana-data:
   loki-data:
   promtail-data:
