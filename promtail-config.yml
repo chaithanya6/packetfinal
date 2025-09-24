@@ -6,30 +6,34 @@ positions:
   filename: /var/lib/promtail/positions.yaml
 
 clients:
+  # Loki client
   - url: http://loki:3100/loki/api/v1/push
 
+  # Splunk HEC client
+  - url: https://splunk:8088/services/collector
+    bearer_token: <PASTE_HEC_TOKEN>
+    tls_config:
+      insecure_skip_verify: true
+
 scrape_configs:
+
+  # 1) Docker container logs
   - job_name: docker
     static_configs:
-      - targets: ['localhost']   # label only; file tailing uses __path__
+      - targets: ['localhost']
         labels:
           job: docker
           host: ${HOSTNAME}
           __path__: /var/lib/docker/containers/*/*-json.log
 
     pipeline_stages:
-      # 1) Unwrap Docker JSON to get the app's line into the message field
       - docker: {}
-
-      # 2) Try JSON first (non-JSON lines will set internal __error__)
       - json:
           expressions:
             ts: ts
             level: level
             message: message
             client: client
-
-      # 3A) If JSON parsed successfully (__error__ is empty)
       - match:
           selector: '{__error__=""}'
           stages:
@@ -45,8 +49,6 @@ scrape_configs:
                 format: RFC3339Nano
             - output:
                 source: message
-
-      # 3B) If JSON failed, fallback to regex parsing
       - match:
           selector: '{__error__!=""}'
           stages:
@@ -66,22 +68,68 @@ scrape_configs:
                 format: RFC3339Nano
             - output:
                 source: message
-
-      # 4) Expose Prometheus metrics per log line
       - metrics:
           log_entries_total:
             type: Counter
-            description: "Total log entries"
             config:
               match_all: true
-              action: inc
+            description: "Total Docker log entries"
 
-# -----------------------
-# Optional: Output to a local file that Splunk OTel Collector can read
-# -----------------------
-# You can add a file target so the Splunk OTel Collector ingests these logs
-# via filelog receiver without changing Promtail's Loki pipeline.
-# Example:
-#   - output:
-#       source: message
-#       path: /var/log/forward_to_splunk.log
+  # 2) Persistor application logs (plain text)
+  - job_name: app_logs
+    static_configs:
+      - targets: ['localhost']
+        labels:
+          job: app
+          host: ${HOSTNAME}
+          # Paths to mounted persistor logs
+          __path__:
+            - /mnt/logs/auth/*.json
+            - /mnt/logs/payment/*.json
+            - /mnt/logs/system/*.json
+            - /mnt/logs/application/*.json
+
+    pipeline_stages:
+      # For plain text or simple JSON logs
+      - json:
+          expressions:
+            ts: ts
+            level: level
+            message: message
+            client: client
+      - match:
+          selector: '{__error__=""}'
+          stages:
+            - labels:
+                level:
+                client:
+            - timestamp:
+                source: ts
+                format: RFC3339Nano
+            - output:
+                source: message
+      - match:
+          selector: '{__error__!=""}'
+          stages:
+            - labeldrop:
+                - __error__
+            - regex:
+                expression: '^(?P<ts>\d{4}-\d{2}-\d{2}T[0-9:.+-]+)\s+(?P<level>DEBUG|INFO|WARN|WARNING|ERROR|CRITICAL)\s+(?P<message>.+?)\s+(?P<client>[\w .''-]+)$'
+            - replace:
+                expression: '(?i)^WARN$'
+                replace: 'WARNING'
+                source: level
+            - labels:
+                level:
+                client:
+            - timestamp:
+                source: ts
+                format: RFC3339Nano
+            - output:
+                source: message
+      - metrics:
+          log_entries_total:
+            type: Counter
+            config:
+              match_all: true
+            description: "Total application log entries"
