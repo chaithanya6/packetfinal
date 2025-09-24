@@ -42,8 +42,8 @@ scrape_configs:
                 replace: 'WARNING'
                 source: level
             - labels:
-                level:
-                client:
+                level: ""
+                client: ""
             - timestamp:
                 source: ts
                 format: RFC3339Nano
@@ -61,8 +61,8 @@ scrape_configs:
                 replace: 'WARNING'
                 source: level
             - labels:
-                level:
-                client:
+                level: ""
+                client: ""
             - timestamp:
                 source: ts
                 format: RFC3339Nano
@@ -100,8 +100,8 @@ scrape_configs:
           selector: '{__error__=""}'
           stages:
             - labels:
-                level:
-                client:
+                level: ""
+                client: ""
             - timestamp:
                 source: ts
                 format: RFC3339Nano
@@ -119,8 +119,8 @@ scrape_configs:
                 replace: 'WARNING'
                 source: level
             - labels:
-                level:
-                client:
+                level: ""
+                client: ""
             - timestamp:
                 source: ts
                 format: RFC3339Nano
