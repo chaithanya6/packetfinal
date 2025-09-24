@@ -10,7 +10,7 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
   # Splunk HEC client
-  - url: https://splunk:8088/services/collector
+  - url: http://splunk:8088/services/collector
     bearer_token: ${SPLUNK_TOKEN}
     tls_config:
       insecure_skip_verify: true
@@ -71,36 +71,23 @@ scrape_configs:
       - metrics:
           log_entries_total:
             type: Counter
+            action: inc
             config:
               match_all: true
             description: "Total Docker log entries"
 
-  # 2) Persistor application logs
+  # 2) Persistor application logs (plain text or JSON)
   - job_name: app_logs
     static_configs:
       - targets: ['localhost']
         labels:
           job: app
           host: ${HOSTNAME}
-          __path__: /mnt/logs/auth/*.json
-
-      - targets: ['localhost']
-        labels:
-          job: app
-          host: ${HOSTNAME}
-          __path__: /mnt/logs/payment/*.json
-
-      - targets: ['localhost']
-        labels:
-          job: app
-          host: ${HOSTNAME}
-          __path__: /mnt/logs/system/*.json
-
-      - targets: ['localhost']
-        labels:
-          job: app
-          host: ${HOSTNAME}
-          __path__: /mnt/logs/application/*.json
+          __path__:
+            - /mnt/logs/auth/*.json
+            - /mnt/logs/payment/*.json
+            - /mnt/logs/system/*.json
+            - /mnt/logs/application/*.json
 
     pipeline_stages:
       - json:
@@ -142,6 +129,7 @@ scrape_configs:
       - metrics:
           log_entries_total:
             type: Counter
+            action: inc
             config:
               match_all: true
             description: "Total application log entries"
