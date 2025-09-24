@@ -10,7 +10,7 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
   # Splunk HEC client
-  - url: https://splunk:8088/services/collector
+  - url: http://splunk:8088/services/collector
     bearer_token: ${SPLUNK_TOKEN}
     tls_config:
       insecure_skip_verify: true
