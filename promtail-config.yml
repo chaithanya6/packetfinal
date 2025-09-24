@@ -11,7 +11,7 @@ clients:
 
   # Splunk HEC client
   - url: https://splunk:8088/services/collector
-    bearer_token: <PASTE_HEC_TOKEN>
+    bearer_token: ${SPLUNK_TOKEN}
     tls_config:
       insecure_skip_verify: true
 
@@ -75,14 +75,13 @@ scrape_configs:
               match_all: true
             description: "Total Docker log entries"
 
-  # 2) Persistor application logs (plain text)
+  # 2) Persistor application logs (plain text or JSON)
   - job_name: app_logs
     static_configs:
       - targets: ['localhost']
         labels:
           job: app
           host: ${HOSTNAME}
-          # Paths to mounted persistor logs
           __path__:
             - /mnt/logs/auth/*.json
             - /mnt/logs/payment/*.json
@@ -90,7 +89,6 @@ scrape_configs:
             - /mnt/logs/application/*.json
 
     pipeline_stages:
-      # For plain text or simple JSON logs
       - json:
           expressions:
             ts: ts
