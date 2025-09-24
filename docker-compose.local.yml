@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  log-listener:
+    build: ./log-listener
+    container_name: log-pipeline-log-listener
+    ports:
+      - "5001:5001"
+    environment:
+      - COLLECTOR_URL=http://13.211.254.185:5002/collect
+
+  log-generator:
+    build: ./log-generator
+    container_name: log-pipeline-log-generator
+    depends_on:
+      - log-listener
+    ports:
+      - "5000:5000"
+    environment:
+      - LISTENER_URL=http://log-listener:5001/logs
+      - CLIENT_NAME=chaitanya   # ✅ human-friendly client name
+
+  otel-collector:
+    image: quay.io/signalfx/splunk-otel-collector:latest
+    container_name: log-pipeline-otel-collector
+    environment:
+      SPLUNK_HEC_TOKEN: "<your-token>"
+      SPLUNK_HEC_URL: "https://log-pipeline-splunk:8088/services/collector"
+      SPLUNK_METRICS_INDEX: "otel_metrics"
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+
+  splunk:
+    image: splunk/splunk:9.0
+    container_name: log-pipeline-splunk
+    environment:
+      SPLUNK_START_ARGS: "--accept-license"
+      SPLUNK_PASSWORD: "SplunkPass123"
+    ports:
+      - "8000:8000"
+      - "8088:8088"
+
+
+networks:
+  default:
+    external:
+      name: log-pipeline-net
+

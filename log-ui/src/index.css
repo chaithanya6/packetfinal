@@ -1,0 +1,68 @@
+.App {
+    font-family: "Segoe UI", Arial, sans-serif;
+    padding: 20px;
+    background: #1e1e2f;
+    color: #f4f4f4;
+    min-height: 100vh;
+}
+
+h1 {
+    text-align: center;
+    color: #f4f4f4;
+    margin-bottom: 20px;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+button {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #2d2d3d;
+    color: #fff;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #444;
+}
+
+button.active {
+    background: #007acc;
+}
+
+select {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #2d2d3d;
+    color: #fff;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: #2a2a3d;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+th,
+td {
+    padding: 10px;
+    border: 1px solid #444;
+    text-align: left;
+}
+
+th {
+    background: #333;
+    color: #fff;
+}

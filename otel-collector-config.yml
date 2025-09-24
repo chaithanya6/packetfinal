@@ -1,0 +1,41 @@
+receivers:
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: cadvisor
+          static_configs:
+            - targets: ['cadvisor:8080']
+        - job_name: loki
+          metrics_path: /metrics
+          static_configs:
+            - targets: ['loki:3100']
+        - job_name: grafana
+          metrics_path: /metrics
+          static_configs:
+            - targets: ['grafana:3000']
+        - job_name: promtail
+          static_configs:
+            - targets: ['promtail:9080']
+        - job_name: prometheus
+          static_configs:
+            - targets: ['prometheus:9090']
+
+processors:
+  batch: {}
+
+exporters:
+  splunk_hec:
+    token: ${SPLUNK_HEC_TOKEN}
+    endpoint: https://log-pipeline-splunk:8088/services/collector
+    index: otel_metrics
+    source: "otel"
+    sourcetype: "otel"
+    tls:
+      insecure_skip_verify: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [batch]
+      exporters: [splunk_hec]

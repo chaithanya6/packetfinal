@@ -1,0 +1,97 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /var/lib/promtail/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    static_configs:
+      - targets: ['localhost']   # label only; file tailing uses __path__
+        labels:
+          job: docker
+          host: ${HOSTNAME}
+          __path__: /var/lib/docker/containers/*/*-json.log
+
+    pipeline_stages:
+      # 1) Unwrap Docker JSON to get the app's line into the message field
+      - docker: {}
+
+      # 2) Try JSON first (non-JSON lines will set internal __error__)
+      - json:
+          # Do not set drop_malformed: true, otherwise text lines would be dropped.
+          # Map your JSON keys to extracted fields:
+          expressions:
+            ts: ts
+            level: level
+            message: message
+            client: client
+          # If your JSON uses different keys, adjust the mapping above, e.g.:
+          # expressions:
+          #   ts: time
+          #   level: severity
+          #   message: msg
+          #   client: client_name
+
+      # 3A) If JSON parsed successfully (__error__ is empty), do JSON path
+      - match:
+          selector: '{__error__=""}'
+          stages:
+            # Normalize level (WARN -> WARNING)
+            - replace:
+                expression: '(?i)^WARN$'
+                replace: 'WARNING'
+                source: level
+            # Promote to labels
+            - labels:
+                level:
+                client:
+            # Use the JSON timestamp
+            - timestamp:
+                source: ts
+                format: RFC3339Nano
+            # Make displayed line just the message
+            - output:
+                source: message
+
+      # 3B) If JSON failed, fall back to your plain text regex parsing
+      - match:
+          selector: '{__error__!=""}'
+          stages:
+            # Clear the error label so it doesn't leak into Loki labels
+            - labeldrop:
+                - __error__
+            # Expect: "<ts> <LEVEL> <message> <client>"
+            - regex:
+                expression: '^(?P<ts>\d{4}-\d{2}-\d{2}T[0-9:.+-]+)\s+(?P<level>DEBUG|INFO|WARN|WARNING|ERROR|CRITICAL)\s+(?P<message>.+?)\s+(?P<client>[\w .''-]+)$'
+            # Normalize level (WARN -> WARNING)
+            - replace:
+                expression: '(?i)^WARN$'
+                replace: 'WARNING'
+                source: level
+            # Promote to labels
+            - labels:
+                level:
+                client:
+            # Use the parsed timestamp
+            - timestamp:
+                source: ts
+                format: RFC3339Nano
+            # Show just the message in the UI
+            - output:
+                source: message
+
+      # 4) Expose a Prometheus counter per log line (with labels incl. level/client)
+      - metrics:
+          log_entries_total:
+            type: Counter
+            description: "Total log entries"
+            # Promtail will expose this as promtail_custom_log_entries_total
+            config:
+              match_all: true
+              action: inc
+
