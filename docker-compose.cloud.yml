@@ -185,7 +185,7 @@ services:
     command: ["--config", "/etc/otel/collector.yaml"]
     environment:
       - SPLUNK_CONFIG=/etc/otel/collector.yaml
-      - SPLUNK_HEC_TOKEN=03374f42-a490-42f5-813d-e5128fb29671
+      - SPLUNK_HEC_TOKEN=b8d99047-9f60-4484-9ee2-e84954bc2b8d
       - SPLUNK_HEC_URL=https://splunk:8088/services/collector
       - SPLUNK_DEBUG_CONFIG_SERVER=true
     volumes:
