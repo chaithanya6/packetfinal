@@ -23,75 +23,65 @@ scrape_configs:
 
       # 2) Try JSON first (non-JSON lines will set internal __error__)
       - json:
-          # Do not set drop_malformed: true, otherwise text lines would be dropped.
-          # Map your JSON keys to extracted fields:
           expressions:
             ts: ts
             level: level
             message: message
             client: client
-          # If your JSON uses different keys, adjust the mapping above, e.g.:
-          # expressions:
-          #   ts: time
-          #   level: severity
-          #   message: msg
-          #   client: client_name
 
-      # 3A) If JSON parsed successfully (__error__ is empty), do JSON path
+      # 3A) If JSON parsed successfully (__error__ is empty)
       - match:
           selector: '{__error__=""}'
           stages:
-            # Normalize level (WARN -> WARNING)
             - replace:
                 expression: '(?i)^WARN$'
                 replace: 'WARNING'
                 source: level
-            # Promote to labels
             - labels:
                 level:
                 client:
-            # Use the JSON timestamp
             - timestamp:
                 source: ts
                 format: RFC3339Nano
-            # Make displayed line just the message
             - output:
                 source: message
 
-      # 3B) If JSON failed, fall back to your plain text regex parsing
+      # 3B) If JSON failed, fallback to regex parsing
       - match:
           selector: '{__error__!=""}'
           stages:
-            # Clear the error label so it doesn't leak into Loki labels
             - labeldrop:
                 - __error__
-            # Expect: "<ts> <LEVEL> <message> <client>"
             - regex:
                 expression: '^(?P<ts>\d{4}-\d{2}-\d{2}T[0-9:.+-]+)\s+(?P<level>DEBUG|INFO|WARN|WARNING|ERROR|CRITICAL)\s+(?P<message>.+?)\s+(?P<client>[\w .''-]+)$'
-            # Normalize level (WARN -> WARNING)
             - replace:
                 expression: '(?i)^WARN$'
                 replace: 'WARNING'
                 source: level
-            # Promote to labels
             - labels:
                 level:
                 client:
-            # Use the parsed timestamp
             - timestamp:
                 source: ts
                 format: RFC3339Nano
-            # Show just the message in the UI
             - output:
                 source: message
 
-      # 4) Expose a Prometheus counter per log line (with labels incl. level/client)
+      # 4) Expose Prometheus metrics per log line
       - metrics:
           log_entries_total:
             type: Counter
             description: "Total log entries"
-            # Promtail will expose this as promtail_custom_log_entries_total
             config:
               match_all: true
               action: inc
 
+# -----------------------
+# Optional: Output to a local file that Splunk OTel Collector can read
+# -----------------------
+# You can add a file target so the Splunk OTel Collector ingests these logs
+# via filelog receiver without changing Promtail's Loki pipeline.
+# Example:
+#   - output:
+#       source: message
+#       path: /var/log/forward_to_splunk.log
