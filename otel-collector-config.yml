@@ -4,7 +4,7 @@ receivers:
       scrape_configs:
         - job_name: cadvisor
           static_configs:
-            - targets: ['cadvisor:8080']
+            - targets: ['cadvisor:8081']
         - job_name: loki
           metrics_path: /metrics
           static_configs:
@@ -14,14 +14,18 @@ receivers:
           static_configs:
             - targets: ['grafana:3000']
         - job_name: promtail
+          metrics_path: /metrics
           static_configs:
             - targets: ['promtail:9080']
         - job_name: prometheus
+          metrics_path: /metrics
           static_configs:
             - targets: ['prometheus:9090']
 
 processors:
-  batch: {}
+  batch:
+    timeout: 10s
+    send_batch_size: 1000
 
 exporters:
   splunk_hec:
@@ -30,6 +34,9 @@ exporters:
     index: otel_metrics
     source: "otel"
     sourcetype: "otel"
+    # Optional: add a custom field to identify the host/source
+    metadata:
+      host: ${HOSTNAME}
     tls:
       insecure_skip_verify: true
 
