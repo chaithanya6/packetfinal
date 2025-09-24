@@ -28,10 +28,8 @@ services:
       - SPLUNK_HEC=https://splunk:8088/services/collector
       - SPLUNK_TOKEN="<PASTE_HEC_TOKEN>"
     depends_on:
-      postgres:
-        condition: service_started
-      splunk:
-        condition: service_healthy
+      - postgres
+      - splunk
     ports:
       - "5002:5002"
     restart: unless-stopped
@@ -86,8 +84,7 @@ services:
     ports:
       - "80:80"
     depends_on:
-      log-collector:
-        condition: service_started
+      - log-collector
     restart: unless-stopped
 
   splunk:
@@ -97,9 +94,9 @@ services:
       - SPLUNK_START_ARGS=--accept-license
       - SPLUNK_PASSWORD=SplunkPass123
     ports:
-      - "8000:8000"
-      - "8088:8088"
-      - "9997:9997"
+      - "8000:8000"  # Splunk Web
+      - "8088:8088"  # HEC
+      - "9997:9997"  # Forwarder
     volumes:
       - splunk-data:/opt/splunk/var
     healthcheck:
@@ -191,18 +188,12 @@ services:
     volumes:
       - ./otel-collector-config.yml:/etc/otel/collector.yaml:ro
     depends_on:
-      splunk:
-        condition: service_healthy
-      cadvisor:
-        condition: service_started
-      promtail:
-        condition: service_started
-      loki:
-        condition: service_started
-      prometheus:
-        condition: service_started
-      grafana:
-        condition: service_started
+      - splunk
+      - cadvisor
+      - promtail
+      - loki
+      - prometheus
+      - grafana
     restart: unless-stopped
 
 volumes:
